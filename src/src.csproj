@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>BaseCap.Security.dll</AssemblyName>
+    <AssemblyTitle>BaseCap Analytics Security Package</AssemblyTitle>
+    <AssemblyCompany>BaseCap Analytics</AssemblyCompany>
+    <PackageId>BaseCap.Security</PackageId>
+    <Authors>BaseCap Analytics</Authors>
+    <Description>BaseCap Security Helper Code</Description>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/basecap-analytics/Security/master/LICENSE</PackageLicenseUrl>
+    <Copyright>Copyright 2018 (c) BaseCap Analytics. All rights reserved.</Copyright>
+  </PropertyGroup>
+
+</Project>
