@@ -6,7 +6,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
-using BaseCap.Security;
 using BaseCap.Security.Test.Mocks;
 
 namespace BaseCap.Security.Test
@@ -52,6 +51,21 @@ namespace BaseCap.Security.Test
         public void CreateEncryptionKey_WithInvalidSpecifiedKeySize_Throws(int keySize)
         {
             Assert.Throws<CryptographicException>(() => EncryptionHelpers.CreateEncryptionKey(keySize));
+        }
+
+        [Fact]
+        public async Task EncryptingAndDecrypting_WithReadOnlyMemory_Works()
+        {
+            byte[] randBytes = new byte[512];
+            Random rnd = new Random();
+            rnd.NextBytes(randBytes);
+            ReadOnlyMemory<byte> data = new ReadOnlyMemory<byte>(randBytes);
+            byte[] key = EncryptionHelpers.CreateEncryptionKey();
+            byte[] encrypted = await EncryptionHelpers.EncryptDataAsync(data, key);
+
+            ReadOnlyMemory<byte> encryptedData = new ReadOnlyMemory<byte>(encrypted);
+            byte[] decrypted = await EncryptionHelpers.DecryptDataAsync(encrypted, key);
+            Assert.Equal(randBytes, decrypted);
         }
 
         [Fact]

@@ -100,6 +100,39 @@ namespace BaseCap.Security
         }
 
         /// <summary>
+        /// Encrypts data and returns the encrypted array
+        /// </summary>
+        /// <param name="data">The data to encrypt</param>
+        /// <param name="encryptionKey">The secret value to encrypt the data with</param>
+        /// <returns>Returns an array of encrypted bytes</returns>
+        public static async Task<byte[]> EncryptDataAsync(ReadOnlyMemory<byte> data, byte[] encryptionKey)
+        {
+            if (data.Length < 1) throw new ArgumentOutOfRangeException(nameof(data.Length));
+            if (encryptionKey == null) throw new ArgumentNullException(nameof(encryptionKey));
+            if (encryptionKey.Length < 1) throw new ArgumentOutOfRangeException(nameof(encryptionKey));
+
+            byte[] result;
+            using (SymmetricAlgorithm alg = CreateAlgorithm(encryptionKey))
+            {
+                alg.GenerateIV();
+                byte[] iv = alg.IV;
+                using (ICryptoTransform encryptor = alg.CreateEncryptor(encryptionKey, iv))
+                using (MemoryStream ms = new MemoryStream(data.Length + IV_SIZE_IN_BYTES))
+                {
+                    using (CryptoStream crypto = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                    {
+                        await ms.WriteAsync(iv, 0, iv.Length);
+                        await crypto.WriteAsync(data);
+                    }
+
+                    result = ms.ToArray();
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Creates a stream to write raw data to that will be encrypted on the fly
         /// </summary>
         /// <param name="encryptionKey">The secret key used to encrypt the data</param>
@@ -154,6 +187,44 @@ namespace BaseCap.Security
                     using (CryptoStream crypto = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
                     {
                         await crypto.CopyToAsync(decrypted);
+                    }
+
+                    result = decrypted.ToArray();
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Decrypts a Span of data and returns the decrypted data
+        /// </summary>
+        /// <param name="data">The data to decrypt</param>
+        /// <param name="encryptionKey">The secret value to decrypt the data with</param>
+        /// <returns>Returns an array of decrypted bytes</returns>
+        public static async Task<byte[]> DecryptDataAsync(ReadOnlyMemory<byte> data, byte[] encryptionKey)
+        {
+            if (data.Length < 1) throw new ArgumentOutOfRangeException(nameof(data.Length));
+            if (encryptionKey == null) throw new ArgumentNullException(nameof(encryptionKey));
+            if (encryptionKey.Length < 1) throw new ArgumentOutOfRangeException(nameof(encryptionKey));
+
+            byte[] result;
+            using (SymmetricAlgorithm alg = CreateAlgorithm(encryptionKey))
+            {
+                // Set the initialization vector
+                alg.IV = data.Slice(0, IV_SIZE_IN_BYTES).ToArray();
+
+                using (ICryptoTransform decryptor = alg.CreateDecryptor(encryptionKey, alg.IV))
+                using (MemoryStream decrypted = new MemoryStream())
+                {
+                    using (MemoryStream encrypted = new MemoryStream())
+                    {
+                        await encrypted.WriteAsync(data).ConfigureAwait(false);
+
+                        using (CryptoStream crypto = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
+                        {
+                            await crypto.CopyToAsync(decrypted);
+                        }
                     }
 
                     result = decrypted.ToArray();
