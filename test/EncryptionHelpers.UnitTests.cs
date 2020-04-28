@@ -6,7 +6,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
-using BaseCap.Security;
 using BaseCap.Security.Test.Mocks;
 
 namespace BaseCap.Security.Test
