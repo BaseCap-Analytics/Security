@@ -1,14 +1,10 @@
 // BaseCap Analytics licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
-using BaseCap.Security;
-using BaseCap.Security.Test.Mocks;
 
 namespace BaseCap.Security.Test
 {
