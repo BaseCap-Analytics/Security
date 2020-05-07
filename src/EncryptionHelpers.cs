@@ -219,7 +219,8 @@ namespace BaseCap.Security
                 {
                     using (MemoryStream encrypted = new MemoryStream())
                     {
-                        await encrypted.WriteAsync(data).ConfigureAwait(false);
+                        await encrypted.WriteAsync(data.Slice(IV_SIZE_IN_BYTES)).ConfigureAwait(false);
+                        encrypted.Seek(0, SeekOrigin.Begin);
 
                         using (CryptoStream crypto = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
                         {
