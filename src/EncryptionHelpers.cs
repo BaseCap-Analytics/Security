@@ -2,6 +2,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -133,6 +134,48 @@ namespace BaseCap.Security
         }
 
         /// <summary>
+        /// Encrypts data and returns the number of exncrypted bytes
+        /// </summary>
+        /// <param name="data">The data to encrypt</param>
+        /// <param name="buffer">The buffer to save the encrypted data in</param>
+        /// <param name="encryptionKey">The secret value to encrypt the data with</param>
+        /// <returns>Returns the number of bytes written</returns>
+        public static int EncryptData(ReadOnlyMemory<byte> data, Memory<byte> buffer, byte[] encryptionKey)
+        {
+            if (data.Length < 1) throw new ArgumentOutOfRangeException(nameof(data.Length));
+            if (encryptionKey == null) throw new ArgumentNullException(nameof(encryptionKey));
+            if (encryptionKey.Length < 1) throw new ArgumentOutOfRangeException(nameof(encryptionKey));
+
+            // For block encryption, you need N + 8 - (n % 8) space
+            int requiredLength = data.Length + 8 - (data.Length % 8) + IV_SIZE_IN_BYTES;
+            if (buffer.Length < requiredLength) throw new ArgumentOutOfRangeException(nameof(buffer), $"Buffer too small; requires length of {requiredLength}");
+
+            using (SymmetricAlgorithm alg = CreateAlgorithm(encryptionKey))
+            {
+                alg.GenerateIV();
+
+                unsafe
+                {
+                    using (MemoryHandle hnd = buffer.Pin())
+                    using (ICryptoTransform encryptor = alg.CreateEncryptor(encryptionKey, alg.IV))
+                    using (UnmanagedMemoryStream ms = new UnmanagedMemoryStream((byte*)hnd.Pointer, buffer.Length, buffer.Length, FileAccess.Write))
+                    {
+                        // Write the IV in the unecrypted stream
+                        ms.Write(alg.IV, 0, alg.IV.Length);
+
+                        // Encrypt the data after the IV
+                        using (CryptoStream crypto = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                        {
+                            crypto.Write(data.Span);
+                        }
+                    }
+                }
+            }
+
+            return requiredLength;
+        }
+
+        /// <summary>
         /// Creates a stream to write raw data to that will be encrypted on the fly
         /// </summary>
         /// <param name="encryptionKey">The secret key used to encrypt the data</param>
@@ -233,6 +276,48 @@ namespace BaseCap.Security
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Decrypts a Span of data and returns the decrypted data
+        /// </summary>
+        /// <param name="data">The data to decrypt</param>
+        /// <param name="buffer">The buffer to store the decrypted data</param>
+        /// <param name="encryptionKey">The secret value to decrypt the data with</param>
+        /// <returns>Returns the number of plaintext bytes written</returns>
+        public static int DecryptData(ReadOnlyMemory<byte> data, Memory<byte> buffer, byte[] encryptionKey)
+        {
+            if (data.Length < 1) throw new ArgumentOutOfRangeException(nameof(data.Length));
+            if (encryptionKey == null) throw new ArgumentNullException(nameof(encryptionKey));
+            if (encryptionKey.Length < 1) throw new ArgumentOutOfRangeException(nameof(encryptionKey));
+            if (buffer.Length < data.Length) throw new ArgumentOutOfRangeException(nameof(buffer));
+
+            using (SymmetricAlgorithm alg = CreateAlgorithm(encryptionKey))
+            {
+                // Set the initialization vector
+                alg.IV = data.Slice(0, IV_SIZE_IN_BYTES).ToArray();
+
+                unsafe
+                {
+                    using (MemoryHandle readHnd = data.Pin())
+                    using (MemoryHandle writeHnd = buffer.Pin())
+                    using (ICryptoTransform decryptor = alg.CreateDecryptor(encryptionKey, alg.IV))
+                    using (UnmanagedMemoryStream encrypted = new UnmanagedMemoryStream((byte*)readHnd.Pointer, data.Length, data.Length, FileAccess.Read))
+                    using (UnmanagedMemoryStream decrypted = new UnmanagedMemoryStream((byte*)writeHnd.Pointer, buffer.Length, buffer.Length, FileAccess.Write))
+                    {
+                        // seek past the IV
+                        encrypted.Seek(IV_SIZE_IN_BYTES, SeekOrigin.Begin);
+
+                        // Decrypt the data
+                        using (CryptoStream crypto = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
+                        {
+                            crypto.CopyTo(decrypted);
+                        }
+                    }
+                }
+            }
+
+            return buffer.TrimEnd((byte)0).Length;
         }
 
         /// <summary>

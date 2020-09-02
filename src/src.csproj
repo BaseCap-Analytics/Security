@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>BaseCap.Security.dll</AssemblyName>
     <AssemblyTitle>BaseCap Analytics Security Package</AssemblyTitle>
     <AssemblyCompany>BaseCap Analytics</AssemblyCompany>
@@ -12,5 +13,9 @@
     <PackageLicenseUrl>https://raw.githubusercontent.com/basecap-analytics/Security/master/LICENSE</PackageLicenseUrl>
     <Copyright>Copyright 2018 (c) BaseCap Analytics. All rights reserved.</Copyright>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.5.4" />
+  </ItemGroup>
 
 </Project>

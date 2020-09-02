@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
 using BaseCap.Security.Test.Mocks;
+using System.Buffers;
 
 namespace BaseCap.Security.Test
 {
@@ -259,6 +260,24 @@ namespace BaseCap.Security.Test
             Assert.NotNull(result);
             Assert.NotEmpty(result);
             Assert.Equal(original, result);
+        }
+
+        [Fact]
+        public void EncryptDecrypt_NonAllocating_Works()
+        {
+            byte[] key = EncryptionHelpers.CreateEncryptionKey(128);
+            string data = "Hello, Encryption World!";
+            byte[] plaintext = System.Text.Encoding.UTF8.GetBytes(data);
+            using (IMemoryOwner<byte> encrypted = MemoryPool<byte>.Shared.Rent(128))
+            using (IMemoryOwner<byte> decrypted = MemoryPool<byte>.Shared.Rent(128))
+            {
+                int encryptedCount = EncryptionHelpers.EncryptData(plaintext.AsMemory(), encrypted.Memory, key);
+                int decryptedCount = EncryptionHelpers.DecryptData(encrypted.Memory.Slice(0, encryptedCount), decrypted.Memory, key);
+                Assert.Equal(plaintext.Length, decryptedCount);
+
+                string final = System.Text.Encoding.UTF8.GetString(decrypted.Memory.Span.Slice(0, decryptedCount));
+                Assert.Equal(data, final);
+            }
         }
     }
 }
